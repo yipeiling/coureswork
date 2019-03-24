@@ -1,0 +1,35 @@
+cloud config set compute/zone us-central1-f
+
+gcloud container clusters create "mongodb"
+gcloud container clusters delete "mongodb"
+
+
+git clone https://github.com/thesandlord/mongo-k8s-sidecar.git
+cd /mongo-k8s-sidecar/example/StatefulSet/
+kubectl apply -f googlecloud\_ssd.yaml
+kubectl apply -f mongo-statefulset.yaml
+
+
+kubectl get pods
+kubectl get pvc
+
+
+kubectl exec -it mongo-0 -- mongo
+rs.initiate()
+var cfg = rs.conf();cfg.members[0].host="mongo-0.mongo:27017";rs.reconfig(cfg)
+rs.add("mongo-1.mongo:27017")
+rs.add({"mongo-1.mongo:27017", priority: 0, votes: 0})
+rs.add({ host: "mongo-2.mongo:27017"})
+rs.add({ host: "mongo-2.mongo:27017", priority: 0, votes: 0})
+rs.status()
+
+connection line:
+mongodb://mongo-0.mongo:27017,mongo-1.mongo:27017,mongo-2.mongo/myproject?replicaSet=rs0
+
+docker build -t gcr.io/test1-228821/cloud:v1 .
+docker push gcr.io/test1-228821/cloud:v1
+kubectl run test --image=gcr.io/test1-228821/cloud:v1 --port 5000
+
+kubectl logs deployment/test
+kubectl expose deployment test --type=LoadBalancer --port 5000 --target-port 27017
+kubectl get services
